@@ -37,7 +37,9 @@
                       new-env (add env #{t1 t2} next-id)]
                   [(make-meta next-id) new-env]))))
 
-
+(defn merge-terms
+  [torig & ts]
+  (reduce (fn [tacc t] (first (-merge-terms {} tacc t))) torig ts))
 
 (defn -main
   "I don't do a whole lot ... yet."
