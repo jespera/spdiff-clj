@@ -21,13 +21,13 @@
 
 (defn zip2 [l1 l2] (partition 2 (interleave l1 l2)))
 
-(defn merge-terms
+(defn- -merge-terms
   "Walk t1 and t2 in parallel and perform anti-unification"
   [env t1 t2]
   (cond (eq t1 t2) [t1 env]
         (and (arity? t1) (arity? t2)
              (= (arity t1) (arity t2))) (reduce (fn [[ts env'] [t1' t2']] 
-                                                  (let [[tt env''] (merge-terms env' t1' t2')]
+                                                  (let [[tt env''] (-merge-terms env' t1' t2')]
                                                     [(conj ts tt) env'']))  
                                                 [[] env] 
                                                 (zip2 t1 t2))
