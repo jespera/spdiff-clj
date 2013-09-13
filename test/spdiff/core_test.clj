@@ -24,11 +24,10 @@
   (is (alpha-eq fm1-term fm2-term))
 )
 
-
 (deftest sub-terms-tests
-  (is (= (set (sub-terms meta1-term)) #{meta1-term 1}))
-  (is (= (set (sub-terms i-term)) #{i-term 42}))
-  (is (= (set (sub-terms f-term)) #{f-term "f"}))
-  (is (= (set (sub-terms fx-term)) #{fx-term f-term "f" x-term "x"}))
-  (is (= (set (sub-terms fm1-term)) #{fm1-term f-term meta1-term}))
+  (is (= (set (sub-terms meta1-term)) #{meta1-term :meta 1}))
+  (is (= (set (sub-terms i-term)) #{i-term :int 42 }))
+  (is (= (set (sub-terms f-term)) #{f-term :var "f"}))
+  (is (= (set (sub-terms fx-term)) #{fx-term f-term "f" x-term "x" :var :call}))
+  (is (= (set (sub-terms fm1-term)) #{fm1-term f-term meta1-term :call :var "f" :meta  1 }))
 )

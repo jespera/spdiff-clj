@@ -1,5 +1,6 @@
 (ns spdiff.core
-  (:require [clojure.zip :as zip]))
+  (:require [clojure.zip :as zip])
+  (:require [clojure.set :as set]))
 ;  (:gen-class))
 
 ; 1) representation of term: hiccup-style: [:type arguments]
@@ -60,8 +61,12 @@
   "Get list of subterms of given term"
   [t]
   (if (vector? t)
-    (cons t (sub-terms (rest t)))
-    t))
+    (reduce (fn [acc t'] 
+              (set/union (conj acc t')
+                         (sub-terms t'))) 
+            #{t}
+            t)
+    #{t}))
 
 (defn -main
   "I don't do a whole lot ... yet."
