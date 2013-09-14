@@ -58,15 +58,13 @@
 ; 2) given two terms, we need to be able to find the common patterns
 
 (defn sub-terms
-  "Get list of subterms of given term"
   [t]
-  (if (vector? t)
-    (reduce (fn [acc t'] 
-              (set/union (conj acc t')
-                         (sub-terms t'))) 
-            #{t}
-            t)
-    #{t}))
+  (let [zipper (zip/vector-zip t)]
+    (loop [loc zipper
+           acc-subs #{}]
+      (if (zip/end? loc)
+        acc-subs
+        (recur (zip/next loc) (conj acc-subs (zip/node loc)))))))
 
 (defn -main
   "I don't do a whole lot ... yet."
