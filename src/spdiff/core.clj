@@ -66,6 +66,36 @@
         acc-subs
         (recur (zip/next loc) (conj acc-subs (zip/node loc)))))))
 
+
+(defn mk-diff [lhs rhs] {:lhs lhs :rhs rhs})
+
+(defn comparable?
+  [t1 t2]
+  (and (arity? t1) (arity? t2)
+       (= (arity t1) (arity t2))))
+
+(defn tree-diff
+  "Compute set of differences found in the given two trees"
+  [orig-lhs orig-rhs]
+  (loop [lhs (zip/vector-zip orig-lhs)
+         rhs (zip/vector-zip orig-rhs)
+         diffs #{}]
+    (if (or (nil? lhs) (nil? rhs) 
+            (zip/end? lhs) (zip/end? rhs))
+      diffs
+      (if (eq (zip/node lhs) (zip/node rhs))
+        (recur (zip/right lhs) (zip/right rhs) diffs)
+        (let [cur-diff (mk-diff (zip/node lhs) (zip/node rhs))
+              lhs-node (zip/node lhs)
+              rhs-node (zip/node rhs)]
+          (if (comparable? lhs-node rhs-node)
+            (->> (map tree-diff lhs-node rhs-node)
+                 (reduce set/union (conj diffs cur-diff)))
+            (recur (zip/right lhs) (zip/right rhs) 
+                   (conj diffs cur-diff)))))))
+)
+
+
 (defn -main
   "I don't do a whole lot ... yet."
   [& args]

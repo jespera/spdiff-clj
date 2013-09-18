@@ -31,3 +31,15 @@
   (is (= (set (sub-terms fx-term)) #{fx-term f-term "f" x-term "x" :var :call}))
   (is (= (set (sub-terms fm1-term)) #{fm1-term f-term meta1-term :call :var "f" :meta  1 }))
 )
+
+(deftest tree-diff-tests
+  (is (= (tree-diff i-term i-term) #{}))
+  (is (= (tree-diff i-term f-term) #{(mk-diff i-term f-term)
+                                     (mk-diff :int :var)
+                                     (mk-diff 42 "f")}))
+  (is (= (tree-diff i-term fx-term) #{(mk-diff i-term fx-term)}))
+  (is (= (tree-diff meta1-term meta2-term)
+         #{(mk-diff 1 2) (mk-diff meta1-term meta2-term)}))
+  (is (= (tree-diff fm1-term fm2-term) (conj (tree-diff meta1-term meta2-term) 
+                                             (mk-diff fm1-term fm2-term))))
+)
