@@ -96,6 +96,49 @@
 )
 
 
+(defn next-or-up 
+  [zipper] 
+  (if-let [r (zip/right zipper)]
+    r
+    (zip/next zipper)))
+
+(defn match-pattern-tree 
+  "Match a given pattern with a given tree returning nil if no match
+  and a binding environment if the pattern matched" 
+  [orig-pattern orig-tree]
+  (loop [pattern (zip/vector-zip orig-pattern)
+         tree (zip/vector-zip orig-tree)
+         env {}]
+    (if (or (nil? pattern) (nil? tree)
+            (zip/end? pattern) (zip/end? tree))
+      env
+      (let [pattern-node (zip/node pattern)
+            tree-node (zip/node tree)]
+        (if (meta? pattern-node)
+          (if-let [bound (get env pattern-node)]
+            (if (eq tree-node bound)
+              (recur (next-or-up pattern) (next-or-up tree) env)
+              nil)
+            (recur (zip/right pattern) (zip/right tree) 
+                   (assoc env pattern-node tree-node)))
+          ; not meta
+          (if (comparable? pattern-node tree-node)
+            ; compare
+            (recur (zip/next pattern) (zip/next tree) env)
+            (if (eq pattern-node tree-node)
+              (recur (next-or-up pattern) (next-or-up tree) env)
+              nil)
+            ))))))
+
+
+;; (defn tree-diff-apply
+;;   "Apply a tree-diff to a given tree"
+;;   [t diff]
+;;   (loop [loc (zip/vector-zip t]]
+    
+;;   )
+
+
 (defn -main
   "I don't do a whole lot ... yet."
   [& args]

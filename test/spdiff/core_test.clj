@@ -6,12 +6,19 @@
 (def x-term [:var "x"])
 (def f-term [:var "f"])
 (def fx-term [:call f-term x-term])
+(def g-term [:var "g"])
+(def fgx-term [:call f-term g-term x-term])
 
 (def meta1-term (make-meta 1))
 (def meta2-term (make-meta 2))
 
+(def add-term [:add i-term f-term x-term])
+(def addmm-term [:add meta1-term f-term meta1-term])
+
 (def fm1-term [:call f-term meta1-term])
 (def fm2-term [:call f-term meta2-term])
+(def fmn-term [:call f-term meta1-term meta2-term])
+(def fmm-term [:call f-term meta1-term meta1-term])
 
 (deftest merge-term-tests
   (is (eq i-term (merge-terms i-term)))
@@ -42,4 +49,16 @@
          #{(mk-diff 1 2) (mk-diff meta1-term meta2-term)}))
   (is (= (tree-diff fm1-term fm2-term) (conj (tree-diff meta1-term meta2-term) 
                                              (mk-diff fm1-term fm2-term))))
+)
+
+(deftest match-tree-tests
+  (is (not (nil? (match-pattern-tree i-term i-term))))
+  (is (not (nil? (match-pattern-tree fx-term fx-term))))
+  (is (not (nil? (match-pattern-tree fm1-term fx-term))))
+  (is (not (nil? (match-pattern-tree fm2-term fx-term))))
+  (is (not (nil? (match-pattern-tree fm1-term fm1-term))))
+  (is (not (nil? (match-pattern-tree fm1-term fm2-term))))
+  (is (not (nil? (match-pattern-tree fmn-term fgx-term))))
+  (is (nil? (match-pattern-tree fmm-term fgx-term)))
+
 )
