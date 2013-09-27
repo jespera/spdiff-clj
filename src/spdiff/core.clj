@@ -96,11 +96,21 @@
 )
 
 
+(defn zip-end [zipper]
+  (loop [loc zipper]
+    (if (zip/end? loc)
+      loc
+      (recur (zip/next loc)))))
+
 (defn next-or-up 
-  [zipper] 
-  (if-let [r (zip/right zipper)]
-    r
-    (zip/next zipper)))
+  [orig-zipper]
+  (loop [loc orig-zipper]
+    (if-let [r (zip/right loc)]
+      r
+      (if-let [up (zip/up loc)]
+        (recur up)
+        (zip-end loc)))))
+      
 
 (defn match-pattern-tree 
   "Match a given pattern with a given tree returning nil if no match
