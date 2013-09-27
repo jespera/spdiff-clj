@@ -8,6 +8,7 @@
 (def fx-term [:call f-term x-term])
 (def g-term [:var "g"])
 (def fgx-term [:call f-term g-term x-term])
+(def gfx-term [:call g-term fx-term])
 
 (def meta1-term (make-meta 1))
 (def meta2-term (make-meta 2))

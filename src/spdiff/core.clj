@@ -23,7 +23,6 @@
 
 (defn zip2 [l1 l2] (partition 2 (interleave l1 l2)))
 
-
 (defn- -merge-terms
   "Walk t1 and t2 in parallel and perform anti-unification"
   [env t1 t2]
@@ -68,6 +67,8 @@
 
 
 (defn mk-diff [lhs rhs] {:lhs lhs :rhs rhs})
+(defn get-lhs [diff] (diff :lhs))
+(defn get-rhs [diff] (diff :rhs))
 
 (defn comparable?
   [t1 t2]
@@ -140,13 +141,32 @@
               nil)
             ))))))
 
+(defn apply-bindings
+  "Replace meta-vars in given term using bindings in given
+  environment"
+  [env t]
+  (loop [loc (zip/vector-zip t)]
+    (if (zip/end? loc)
+      (zip/root loc)
+      (let [node (zip/node loc)]
+        (if (meta? node)
+          (if-let [tree (get env node)]
+            (recur (next-or-up (zip/replace loc tree))) 
+            (recur (next-or-up loc)))
+          (recur (zip/next loc)))))))
+  
 
-;; (defn tree-diff-apply
-;;   "Apply a tree-diff to a given tree"
-;;   [t diff]
-;;   (loop [loc (zip/vector-zip t]]
-    
-;;   )
+(defn tree-diff-apply
+  "Apply a tree-diff to a given tree. Does not do replacements on inserted pieces."
+  [diff t]
+  (let [lhs (get-lhs diff)]
+    (loop [loc (zip/vector-zip t)]
+      (if (zip/end? loc)
+        (zip/root loc)
+        (if-let [bindings (match-pattern-tree lhs (zip/node loc))]
+          (recur (next-or-up (zip/replace loc
+                                          (apply-bindings bindings (get-rhs diff)))))
+          (recur (zip/next loc)))))))
 
 
 (defn -main
