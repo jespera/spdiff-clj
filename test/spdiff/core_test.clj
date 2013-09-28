@@ -19,7 +19,9 @@
 (def fm1-term [:call f-term meta1-term])
 (def fm2-term [:call f-term meta2-term])
 (def fmn-term [:call f-term meta1-term meta2-term])
+(def fxn-term [:call f-term x-term meta2-term])
 (def fmm-term [:call f-term meta1-term meta1-term])
+(def fxx-term [:call f-term x-term x-term])
 
 (deftest merge-term-tests
   (is (eq i-term (merge-terms i-term)))
@@ -61,5 +63,17 @@
   (is (not (nil? (match-pattern-tree fm1-term fm2-term))))
   (is (not (nil? (match-pattern-tree fmn-term fgx-term))))
   (is (nil? (match-pattern-tree fmm-term fgx-term)))
+)
+
+(def env1 {meta1-term x-term})
+(def envE {})
+
+(deftest apply-bindings-test
+  (is (= (apply-bindings env1 meta1-term) x-term))
+  (is (= (apply-bindings env1 fm1-term) fx-term))
+  (is (= (apply-bindings env1 fmm-term) fxx-term))
+  (is (= (apply-bindings env1 fmn-term) fxn-term))
+  (is (= (apply-bindings envE fmn-term) fmn-term))
+)
 
 )
