@@ -5,10 +5,13 @@
 
 ; 1) representation of term: hiccup-style: [:type arguments]
 
-(defn make-meta [name] [:meta name])
+; TODO: we need to make sure a meta-term is atomic, or special case
+; everywhere we traverse a tree to make sure we do not compare
+; "contents" of meta var
+(defn make-meta [name] {:meta name})
 
-(defn meta? [term] (and (vector? term)
-                        (= (first term) :meta)))
+(defn meta? [term] (and (map? term)
+                        (term :meta)))
 
 (defn eq [t1 t2] (= t1 t2))
 
