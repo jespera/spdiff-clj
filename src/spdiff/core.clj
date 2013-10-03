@@ -172,6 +172,45 @@
           (recur (zip/next loc)))))))
 
 
+(defn fresh-meta
+  "Return a fresh meta-term not bound in given env"
+  [env]
+  (do (println "fresh-from" (str env))
+  (->> (vals env)
+       (map #(% :meta))
+       (reduce max 0)
+       (#(make-meta (inc %))))))
+
+(defn anti-unify
+  "Construct anti-unifier for given two terms"
+  [lhs-term rhs-term]
+  (loop [lhs-loc (zip/vector-zip lhs-term)
+         rhs-loc (zip/vector-zip rhs-term)
+         env {}]
+    (if (and (zip/end? lhs-loc)
+             (zip/end? rhs-loc))
+      (zip/root rhs-loc)
+      (let [lhs-node (zip/node lhs-loc)
+            rhs-node (zip/node rhs-loc)]
+        (if (eq lhs-node rhs-node)
+          (recur (next-or-up lhs-loc)
+                 (next-or-up rhs-loc)
+                 env)
+          (if (comparable? lhs-node rhs-node)
+            (recur (zip/next lhs-loc)
+                   (zip/next rhs-loc)
+                   env)
+            (if-let [bound-meta (get env #{lhs-node rhs-node})]
+              (recur (next-or-up lhs-loc)
+                     (next-or-up (zip/replace rhs-loc bound-meta))
+                     env)
+              (let [new-meta (fresh-meta env)]
+                (recur (next-or-up lhs-loc)
+                       (next-or-up (zip/replace rhs-loc new-meta))
+                       (assoc env #{lhs-node rhs-node} new-meta))))))))))
+             
+
+      
 (defn -main
   "I don't do a whole lot ... yet."
   [& args]

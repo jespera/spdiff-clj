@@ -75,4 +75,8 @@
   (is (= (apply-bindings envE fmn-term) fmn-term))
 )
 
+(deftest anti-unify-eq
+  (is (eq (anti-unify i-term i-term) i-term))
+  (is (eq (anti-unify fx-term fx-term) fx-term))
+  (is (alpha-eq (anti-unify i-term fx-term) meta1-term))
 )
