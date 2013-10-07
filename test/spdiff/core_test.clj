@@ -22,6 +22,7 @@
 (def fxn-term [:call f-term x-term meta2-term])
 (def fmm-term [:call f-term meta1-term meta1-term])
 (def fxx-term [:call f-term x-term x-term])
+(def fxi-term [:call f-term x-term i-term])
 
 (deftest merge-term-tests
   (is (eq i-term (merge-terms i-term)))
@@ -79,4 +80,5 @@
   (is (eq (anti-unify i-term i-term) i-term))
   (is (eq (anti-unify fx-term fx-term) fx-term))
   (is (alpha-eq (anti-unify i-term fx-term) meta1-term))
+  (is (alpha-eq (anti-unify fmn-term fmm-term) fmn-term))
 )

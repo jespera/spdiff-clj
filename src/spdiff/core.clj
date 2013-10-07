@@ -8,10 +8,40 @@
 ; TODO: we need to make sure a meta-term is atomic, or special case
 ; everywhere we traverse a tree to make sure we do not compare
 ; "contents" of meta var
+
+(defn zip-end [zipper]
+  (loop [loc zipper]
+    (if (zip/end? loc)
+      loc
+      (recur (zip/next loc)))))
+
+(defn next-or-up 
+  [orig-zipper]
+  (loop [loc orig-zipper]
+    (if-let [r (zip/right loc)]
+      r
+      (if-let [up (zip/up loc)]
+        (recur up)
+        (zip-end loc)))))
+
+
 (defn make-meta [name] {:meta name})
 
 (defn meta? [term] (and (map? term)
                         (term :meta)))
+
+(defn meta-val [term]
+  (term :meta))
+
+(defn metas
+  "Get meta-vars used in term"
+  [term]
+  (loop [loc (zip/vector-zip term)
+         res #{}]
+    (cond (zip/end? loc) res
+          (meta? (zip/node loc)) (recur (next-or-up loc) 
+                                        (conj res (meta-val (zip/node loc))))
+          :else (recur (zip/next loc) res))))
 
 (defn eq [t1 t2] (= t1 t2))
 
@@ -175,40 +205,61 @@
 (defn fresh-meta
   "Return a fresh meta-term not bound in given env"
   [env]
-  (do (println "fresh-from" (str env))
   (->> (vals env)
        (map #(% :meta))
        (reduce max 0)
-       (#(make-meta (inc %))))))
+       (#(make-meta (inc %)))))
+
 
 (defn anti-unify
   "Construct anti-unifier for given two terms"
   [lhs-term rhs-term]
-  (loop [lhs-loc (zip/vector-zip lhs-term)
-         rhs-loc (zip/vector-zip rhs-term)
-         env {}]
-    (if (and (zip/end? lhs-loc)
-             (zip/end? rhs-loc))
-      (zip/root rhs-loc)
-      (let [lhs-node (zip/node lhs-loc)
-            rhs-node (zip/node rhs-loc)]
-        (if (eq lhs-node rhs-node)
-          (recur (next-or-up lhs-loc)
-                 (next-or-up rhs-loc)
-                 env)
-          (if (comparable? lhs-node rhs-node)
-            (recur (zip/next lhs-loc)
-                   (zip/next rhs-loc)
+  (let [metas1 (metas lhs-term)
+        metas2 (metas rhs-term)
+        pre-metas (set/union metas1 metas2)] 
+    (loop [lhs-loc (zip/vector-zip lhs-term)
+           rhs-loc (zip/vector-zip rhs-term)
+           env (reduce (fn [acc-env num] 
+                         (assoc acc-env (make-meta num) (make-meta num)))
+                       {} pre-metas)]
+      (if (and (zip/end? lhs-loc)
+               (zip/end? rhs-loc))
+        (zip/root rhs-loc)
+        (let [lhs-node (zip/node lhs-loc)
+              rhs-node (zip/node rhs-loc)]
+          (if (eq lhs-node rhs-node)
+            (recur (next-or-up lhs-loc)
+                   (next-or-up rhs-loc)
                    env)
-            (if-let [bound-meta (get env #{lhs-node rhs-node})]
-              (recur (next-or-up lhs-loc)
-                     (next-or-up (zip/replace rhs-loc bound-meta))
+            (if (comparable? lhs-node rhs-node)
+              (recur (zip/next lhs-loc)
+                     (zip/next rhs-loc)
                      env)
-              (let [new-meta (fresh-meta env)]
+              (if-let [bound-meta (get env #{lhs-node rhs-node})]
                 (recur (next-or-up lhs-loc)
-                       (next-or-up (zip/replace rhs-loc new-meta))
-                       (assoc env #{lhs-node rhs-node} new-meta))))))))))
-             
+                       (next-or-up (zip/replace rhs-loc bound-meta))
+                       env)
+                (let [new-meta (fresh-meta env)]
+                  (recur (next-or-up lhs-loc)
+                         (next-or-up (zip/replace rhs-loc new-meta))
+                         (assoc env #{lhs-node rhs-node} new-meta)))))))))))
+  
+; match pattern
+; apply diff
+; apply subst
+; anti-unify
+; get tree diffs
+
+(defn get-common-patterns 
+  [t1 t2]
+  (let [subs2 (sub-terms t2)]
+    (->> (sub-terms t1) ;subterm list
+         (map (fn [sub] (map #(anti-unify sub %) subs2))) ;merged list list
+         (reduce (fn [acc merges] (reduce conj acc merges)) #{}))))
+
+; TODOs
+; get common patterns
+; get common diffs
 
       
 (defn -main
