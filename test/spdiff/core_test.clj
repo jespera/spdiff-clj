@@ -6,6 +6,8 @@
 (def x-term [:var "x"])
 (def f-term [:var "f"])
 (def fx-term [:call f-term x-term])
+(def fi-term [:call f-term i-term])
+(def fii-term [:call f-term i-term i-term])
 (def g-term [:var "g"])
 (def fgx-term [:call f-term g-term x-term])
 (def gfx-term [:call g-term fx-term])

@@ -1,6 +1,9 @@
 (ns spdiff.core
   (:require [clojure.zip :as zip])
-  (:require [clojure.set :as set]))
+  (:require [clojure.set :as set])
+  (:require [instaparse.core :as insta])
+)
+
 ;  (:gen-class))
 
 ; 1) representation of term: hiccup-style: [:type arguments]
@@ -211,6 +214,13 @@
        (#(make-meta (inc %)))))
 
 
+(defn remove-metas
+  [env]
+  (reduce (fn [acc [k v]] 
+            (if (and (meta? k) (meta? v)) acc (assoc acc k v)))
+          {}
+          env))
+
 (defn anti-unify
   "Construct anti-unifier for given two terms"
   [lhs-term rhs-term]
@@ -224,7 +234,7 @@
                        {} pre-metas)]
       (if (and (zip/end? lhs-loc)
                (zip/end? rhs-loc))
-        (zip/root rhs-loc)
+        [(zip/root rhs-loc) (remove-metas env)]
         (let [lhs-node (zip/node lhs-loc)
               rhs-node (zip/node rhs-loc)]
           (if (eq lhs-node rhs-node)
@@ -244,22 +254,142 @@
                          (next-or-up (zip/replace rhs-loc new-meta))
                          (assoc env #{lhs-node rhs-node} new-meta)))))))))))
   
-; match pattern
-; apply diff
-; apply subst
-; anti-unify
-; get tree diffs
 
-(defn get-common-patterns 
-  [t1 t2]
-  (let [subs2 (sub-terms t2)]
-    (->> (sub-terms t1) ;subterm list
-         (map (fn [sub] (map #(anti-unify sub %) subs2))) ;merged list list
-         (reduce (fn [acc merges] (reduce conj acc merges)) #{}))))
+(defn merge-diffs
+  "pt1 * pt2"
+  [pt1 pt2]
+  (let [l1 (get-lhs pt1)
+        r1 (get-rhs pt1)
+        l2 (get-lhs pt2)
+        r2 (get-rhs pt2)
+        [lhs lhs-env] (anti-unify l1 l2)
+        [rhs rhs-env] (anti-unify r1 r2)]
+    (mk-diff lhs (apply-bindings 
+                  (keep (fn [[support lhs-meta]]
+                          (when-let [rhs-meta (get rhs-env support)]
+                            [rhs-meta lhs-meta])) lhs-env)
+                  rhs))))
+  ; if
+  ; pt1 * pt2 = pt3
+  ; then 
+  ; a) pt1 ≼ (t1,t1') implies pt3 ≼ (t1,t1')
+  ; b) pt2 ≼ (t2,t2') implies pt3 ≼ (t2,t2')
+  ; and forall other pt4 satisfying a) and b)
+  ; then pt3 ≼ pt4
+  ;
+  ; question: for term-diffs, can we implement pt1 * pt2 purely
+  ; syntactically?
+  ; f(a) -> f(a,a)
+  ; f(b) -> f(a,b)
+  ;   X{a,b}    Y{a,b}
+  ; f(c) -> f(c,c)
+  ; 
+  ; f(X) -> f(a,X)
+  ; Idea:
+  ; given p1l -> p1r and p2l -> p2r construct
+  ; p1l*p2l = p12l and
+  ; p1r*p2r = p12r
+  ; (postulate: for all X in metas(p12l) the support set is unique
+  ; thus, provided that |metas(p12r)| <= |metas(p12l)| we should
+  ; be able to construct p12r' where we 'reverse-substitute' the
+  ; bindings found for p12l
+  ; then we should satisfy the above!?!
 
-; TODOs
-; get common patterns
-; get common diffs
+
+; S[t,t'] = [{ pt | pt in diff(t,t'), pt ≼ (t,t')}, {[t,t']}]
+; S1 * S2 = let  S1 = [pts1, pairs1]
+;                S2 = [pts2, pairs2]
+;                pts= {pt | pt1 ∈ pts1, pt2 ∈ pts2, pt = pt1*pt2, pt ≼ pairs1 u pairs2}
+;           in   [pts, pairs1 u pairs2]
+
+(def grammar 
+  "exp  ::= num | var | call | exp '*' exp | exp '+' exp
+   var  ::= #'[a-zA-Z]+[a-zA-Z0-9]*'
+   num  ::= #'[0-9]+'
+   call ::= var '(' expCommaList? ')'
+   expCommaList ::= exp | exp ',' expCommaList
+"
+)
+
+; metric, dist func:
+; dist(x,y) >= 0   [non-negativity]
+; dist(x,y) = 0 iff x = y
+; dist(x,y) = dist(y,x)
+; dist(x,z) <= d(x,y) + d(y,z)
+
+
+(defn edit-dist
+  [l r]
+  (cond (empty? l) (count r)
+        (empty? r) (count l)
+        :else (if (= (first l) (first r))
+                (min (inc (edit-dist (rest l) r)) 
+                     (inc (edit-dist l (rest r))) 
+                     (edit-dist (rest l) (rest r)))
+                (min (inc (edit-dist (rest l) r)) 
+                     (inc (edit-dist l (rest r))))
+                )))
+
+(defn mk-eq [e] {:eq e})
+(defn mk-rm [e] {:rm e})
+(defn mk-add [e] {:add e})
+
+(defn smallest-op
+  [eq-cost rm-cost add-cost]
+  (cond (and (<= eq-cost rm-cost) (<= eq-cost add-cost)) :eq
+        (and (<= rm-cost add-cost)) :rm
+        :else :add))
+
+
+(defn edit-script
+  [l r]
+  (cond (empty? l) (map mk-add r)
+        (empty? r) (map mk-rm l)
+        :else (let [rm-cost  (edit-dist (rest l) r)
+                    add-cost (edit-dist l (rest r))]
+                (if (= (first l) (first r))
+                  (let [eq-cost (edit-dist (rest l) (rest r))
+                        small-op (smallest-op eq-cost rm-cost add-cost)]
+                    (cond (= small-op :eq) (cons (mk-eq (first l))
+                                                 (edit-script (rest l)
+                                                              (rest r)))
+                          (= small-op :rm) (cons (mk-rm (first l))
+                                                 (edit-script (rest l) r))
+                          (= small-op :add) (cons (mk-add l) 
+                                                  (edit-script l (rest r)))))
+                  (if (<= rm-cost add-cost)
+                    (cons (mk-rm (first l)) 
+                          (edit-script (rest l) r))
+                    (cons (mk-add(first r)) 
+                          (edit-script l (rest r))))))))
+                
+
+(defn tree-dist
+  "Compute edit distance between given terms allowing only removals
+  and additions. Must be a metric."
+  [old new] 
+  0
+)
+
+(defn safe-for
+  "Decide pt≼(old,new)"
+  [pt old new]
+  false
+)
+; safe-for pt old new holds iff
+; pt(old)=mid & δ(old,mid)+δ(mid,new) = δ(old,new)
+; alternative definition:
+; pt(old)=mid & old->mid->new where
+;
+; t -> t' -> t'' <=>
+; t = t' or t' = t'' or
+;
+;
+; f(1,2,3) -> f(2,2) -> f(2)
+;
+
+
+(def parser (insta/parser grammar))
 
       
 (defn -main
