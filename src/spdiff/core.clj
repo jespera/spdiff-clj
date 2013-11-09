@@ -318,17 +318,27 @@
 ; dist(x,z) <= d(x,y) + d(y,z)
 
 
-(defn edit-dist
-  [l r]
+(defn edit-dist-f
+  [distf sizef l r]
   (cond (empty? l) (count r)
         (empty? r) (count l)
         :else (if (= (first l) (first r))
-                (min (inc (edit-dist (rest l) r)) 
-                     (inc (edit-dist l (rest r))) 
-                     (edit-dist (rest l) (rest r)))
-                (min (inc (edit-dist (rest l) r)) 
-                     (inc (edit-dist l (rest r))))
+                (min (+ (sizef (first l))
+                        (edit-dist-f distf sizef (rest l) r)) 
+                     (+ (sizef (first r))
+                        (edit-dist-f distf sizef l (rest r))) 
+                     (edit-dist-f distf sizef (rest l) (rest r)))
+                (min (+ (sizef (first l))
+                        (edit-dist-f distf sizef (rest l) r)) 
+                     (+ (sizef (first r))
+                        (edit-dist-f distf sizef l (rest r)))
+                     (+ (distf (first l) (first r)) 
+                        (edit-dist-f distf sizef (rest l) (rest r)))
+                     )
                 )))
+
+(defn edit-dist
+  [l r] (edit-dist-f (fn [a b] 1) (fn [a] 1) l r))
 
 (defn mk-eq [e] {:eq e})
 (defn mk-rm [e] {:rm e})
@@ -363,13 +373,28 @@
                     (cons (mk-add(first r)) 
                           (edit-script l (rest r))))))))
                 
+(defn tree-size
+  "Compute size of tree"
+  [tree]
+  (loop [t (zip/vector-zip tree)
+         size 0]
+    (if (zip/end? t) 
+      size
+      (recur (zip/next t) (inc size)))))
+        
+(declare tree-dist)
 
 (defn tree-dist
   "Compute edit distance between given terms allowing only removals
   and additions. Must be a metric."
-  [old new] 
-  0
-)
+  [old new]
+  (cond (and (arity? old) (arity? new)) 
+          (edit-dist-f tree-dist tree-size old new)
+        (arity? old)
+          (inc (tree-size old))
+        (arity? new)
+          (inc (tree-size new))
+        :else (if (= old new) 0 2)))
 
 (defn safe-for
   "Decide pt≼(old,new)"
