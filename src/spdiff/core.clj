@@ -2,6 +2,7 @@
   (:require [clojure.zip :as zip])
   (:require [clojure.set :as set])
   (:require [instaparse.core :as insta])
+  (:require [clojure.math.combinatorics :as combo])
 )
 
 ;  (:gen-class))
@@ -306,8 +307,8 @@
   "exp  ::= num | var | call | exp '*' exp | exp '+' exp
    var  ::= #'[a-zA-Z]+[a-zA-Z0-9]*'
    num  ::= #'[0-9]+'
-   call ::= var '(' expCommaList? ')'
-   expCommaList ::= exp | exp ',' expCommaList
+   call ::= var <'('> expCommaList? <')'>
+   <expCommaList> ::= exp | exp <','> expCommaList
 "
 )
 
@@ -320,8 +321,8 @@
 
 (defn edit-dist-f
   [distf sizef l r]
-  (cond (empty? l) (count r)
-        (empty? r) (count l)
+  (cond (empty? l) (reduce + 0 (map sizef r))
+        (empty? r) (reduce + 0 (map sizef l))
         :else (if (= (first l) (first r))
                 (min (+ (sizef (first l))
                         (edit-dist-f distf sizef (rest l) r)) 
@@ -372,6 +373,11 @@
                           (edit-script (rest l) r))
                     (cons (mk-add(first r)) 
                           (edit-script l (rest r))))))))
+
+(defmacro defmemo
+  [name & fdecl]
+  `(def ~name
+     (memoize (fn ~fdecl))))
                 
 (defn tree-size
   "Compute size of tree"
@@ -384,9 +390,7 @@
         
 (declare tree-dist)
 
-(defn tree-dist
-  "Compute edit distance between given terms allowing only removals
-  and additions. Must be a metric."
+(defmemo tree-dist
   [old new]
   (cond (and (arity? old) (arity? new)) 
           (edit-dist-f tree-dist tree-size old new)
@@ -399,19 +403,18 @@
 (defn safe-for
   "Decide pt≼(old,new)"
   [pt old new]
-  false
-)
-; safe-for pt old new holds iff
-; pt(old)=mid & δ(old,mid)+δ(mid,new) = δ(old,new)
-; alternative definition:
-; pt(old)=mid & old->mid->new where
-;
-; t -> t' -> t'' <=>
-; t = t' or t' = t'' or
-;
-;
-; f(1,2,3) -> f(2,2) -> f(2)
-;
+  (when-let [mid (tree-diff-apply pt old)]
+    (= (tree-dist old new)
+       (+ (tree-dist old mid)
+          (tree-dist mid new)))))
+
+;; 
+; given C = {(t1,t1'),...,(tn,tn')}
+; B is a function from (t,t') to concrete simple safe patches
+; let Bs = map B C
+; let Ps = cartesian-product Bs
+; let Ts = reduce merge-diffs
+; (filter (safe-for C) Ts)
 
 
 (def parser (insta/parser grammar))
