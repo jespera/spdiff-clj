@@ -303,15 +303,6 @@
 ;                pts= {pt | pt1 ∈ pts1, pt2 ∈ pts2, pt = pt1*pt2, pt ≼ pairs1 u pairs2}
 ;           in   [pts, pairs1 u pairs2]
 
-(def grammar 
-  "exp  ::= num | var | call | exp '*' exp | exp '+' exp
-   var  ::= #'[a-zA-Z]+[a-zA-Z0-9]*'
-   num  ::= #'[0-9]+'
-   call ::= var <'('> expCommaList? <')'>
-   <expCommaList> ::= exp | exp <','> expCommaList
-"
-)
-
 ; metric, dist func:
 ; dist(x,y) >= 0   [non-negativity]
 ; dist(x,y) = 0 iff x = y
@@ -416,8 +407,6 @@
 ; let Ts = reduce merge-diffs
 ; (filter (safe-for C) Ts)
 
-
-(def parser (insta/parser grammar))
 
       
 (defn -main

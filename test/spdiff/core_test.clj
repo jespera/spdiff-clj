@@ -1,6 +1,8 @@
 (ns spdiff.core-test
   (:use clojure.test
-        spdiff.core))
+        spdiff.core)
+  (:require [instaparse.core :as insta])
+  )
 
 (def i-term [:int 42])
 (def x-term [:var "x"])
@@ -25,6 +27,8 @@
 (def fmm-term [:call f-term meta1-term meta1-term])
 (def fxx-term [:call f-term x-term x-term])
 (def fxi-term [:call f-term x-term i-term])
+
+
 
 (deftest merge-term-tests
   (is (eq i-term (merge-terms i-term)))
@@ -68,19 +72,49 @@
 )
 
 (def env1 {meta1-term x-term})
-(def envE {})
+(def emptyEnv {})
 
 (deftest apply-bindings-test
   (is (= (apply-bindings env1 meta1-term) x-term))
   (is (= (apply-bindings env1 fm1-term) fx-term))
   (is (= (apply-bindings env1 fmm-term) fxx-term))
   (is (= (apply-bindings env1 fmn-term) fxn-term))
-  (is (= (apply-bindings envE fmn-term) fmn-term))
+  (is (= (apply-bindings emptyEnv fmn-term) fmn-term))
 )
 
+
 (deftest anti-unify-eq
-  (is (eq (anti-unify i-term i-term) i-term))
-  (is (eq (anti-unify fx-term fx-term) fx-term))
-  (is (alpha-eq (anti-unify i-term fx-term) meta1-term))
-  (is (alpha-eq (anti-unify fmn-term fmm-term) fmn-term))
+  (is (eq (anti-unify i-term i-term) 
+          [i-term emptyEnv]))
+  (is (eq (anti-unify fx-term fx-term) 
+          [fx-term emptyEnv]))
+  (is (alpha-eq (first (anti-unify i-term fx-term))
+                meta1-term))
+  (is (alpha-eq (first (anti-unify fmn-term fmm-term))
+                fmn-term))
 )
+
+
+(def grammar 
+  "exp  ::= num | var | call | exp '*' exp | exp '+' exp
+   var  ::= #'[a-zA-Z][a-zA-Z0-9]*'
+   num  ::= #'[0-9]+'
+   call ::= var <'('> expCommaList? <')'>
+   <expCommaList> ::= exp | exp <','> expCommaList
+"
+)
+
+
+(def parser (insta/parser grammar))
+
+
+(def testC
+  [[(parser "f(x)") (parser "f(x,x)")]
+   [(parser "f(y)") (parser "f(y,y)")]
+   ])
+
+
+;; (def safeC
+;;   (map (fn [[old new]]
+;;          (filter (fn [pt] (safe-for pt old new)) (tree-diff old new)))
+;;        testC))
